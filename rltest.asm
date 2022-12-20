@@ -101,7 +101,10 @@ genmapaddr = $61
 genmapnrooms = $63
 genmapx1 = $64
 genmapy1 = $65
-genmaptx = $66
+genmapt1 = $66
+genmapx2 = $43
+genmapy2 = $44
+genmapt2 = $45
 genmaprooms = $c500
 genmaptrooms = 5
 genmap:
@@ -153,12 +156,12 @@ genmaprm2:
 genmappl0:
   lda genmaprooms,x
   and #3
-  stx genmaptx
+  stx genmapt1
   ldx #10
   jsr mul
   adc #5
   sta genmapx
-  ldx genmaptx
+  ldx genmapt1
   lda genmaprooms,x
   and #12
   sta genmapy
@@ -171,7 +174,7 @@ genmappl0:
   sta genmapy
   lda #46
   jsr placetile
-  ldx genmaptx
+  ldx genmapt1
   inx
   cpx genmapnrooms
   bne genmappl0
@@ -179,7 +182,95 @@ genmappl0:
   rts
 
 placeroom:
+  lda #10
+  jsr random
+  sta genmapt2
+  lsr genmapt2
   lda genmapx
+  clc
+  sbc genmapt2
+  pha
+  sta genmapx1
+  lda genmapx
+  adc genmapt2
+  sta genmapx2
+  lda #7
+  jsr random
+  sta genmapt2
+  lsr genmapt2
+  lda genmapy
+  sbc genmapt2
+  pha
+  sta genmapy1
+  lda genmapy
+  adc genmapt2
+  sta genmapy2
+  lda #102
+  jsr placebox
+  pla
+  sta genmapy1
+  inc genmapy1
+  pla
+  sta genmapx1
+  inc genmapx1
+  dec genmapy2
+  dec genmapx2
+  lda #46
+  jsr placebox
+  rts
+
+placebox:
+  lda genmapx
+  pha
+  lda genmapy
+  pha
+  lda genmapx1
+  sta genmapx
+  lda genmapy2
+  sta genmapy
+  lda #41
+  jsr placetile
+  lda genmapx2
+  sta genmapx
+  lda genmapy2
+  sta genmapy
+  lda #41
+  jsr placetile
+  pla
+  sta genmapy
+  pla 
+  sta genmapx
+  rts
+
+  sta genmapt2
+  ; push genmap xy
+  lda genmapx
+  pha
+  lda genmapy
+  pha
+  ldy genmapy1
+  ; loop
+placebox0:
+  ldx genmapx1
+placebox1:
+  stx genmapx
+  sty genmapy
+  lda genmapt2
+  jsr placetile
+  ldx genmapx
+  ldy genmapy
+  inx
+  cpx genmapx2
+  bne placebox1
+  iny
+  cpy genmapy2
+  bne placebox0
+  ; return
+  pla
+  sta genmapy
+  pla
+  sta genmapx
+  rts
 
 placetile:
   pha
