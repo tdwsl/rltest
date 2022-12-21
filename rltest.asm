@@ -84,7 +84,7 @@ random:
   adc randomseed
   eor #$ff
   sta randomseed
-  eor #$ff
+  ;eor #$ff
 random0:
   cmp #$ff
   bcc random2
@@ -102,9 +102,10 @@ genmapnrooms = $63
 genmapx1 = $64
 genmapy1 = $65
 genmapt1 = $66
-genmapx2 = $43
-genmapy2 = $44
-genmapt2 = $45
+genmapw = $4e
+genmaph = $4f
+genmapt2 = $fb
+genmapt3 = $fc
 genmaprooms = $c500
 genmaptrooms = 5
 genmap:
@@ -173,7 +174,7 @@ genmappl0:
   adc #4
   sta genmapy
   lda #46
-  jsr placetile
+  jsr placeroom
   ldx genmapt1
   inx
   cpx genmapnrooms
@@ -182,110 +183,100 @@ genmappl0:
   rts
 
 placeroom:
+  lda genmapx
+  sta genmapx1
+  lda genmapy
+  sta genmapy1
+  dec genmapx1
+  dec genmapx1
+  dec genmapy1
+  dec genmapy1
+  lda #4
+  sta genmapw
+  lda #4
+  sta genmaph
+  jmp placebox
+
   lda #10
   jsr random
+  sta genmapw
   sta genmapt2
   lsr genmapt2
   lda genmapx
   clc
   sbc genmapt2
-  pha
   sta genmapx1
-  lda genmapx
-  adc genmapt2
-  sta genmapx2
   lda #7
   jsr random
+  sta genmaph
   sta genmapt2
   lsr genmapt2
   lda genmapy
+  clc
   sbc genmapt2
-  pha
   sta genmapy1
-  lda genmapy
-  adc genmapt2
-  sta genmapy2
   lda #102
   jsr placebox
-  pla
-  sta genmapy1
-  inc genmapy1
-  pla
-  sta genmapx1
   inc genmapx1
-  dec genmapy2
-  dec genmapx2
+  inc genmapy1
+  dec genmapw
+  dec genmapw
+  dec genmaph
+  dec genmaph
   lda #46
-  jsr placebox
-  rts
+  jmp placebox
 
 placebox:
+  sta genmapt2
   lda genmapx
   pha
   lda genmapy
   pha
+
+  lda genmapy1
+  sta genmapy
   lda genmapx1
   sta genmapx
-  lda genmapy2
-  sta genmapy
-  lda #41
-  jsr placetile
-  lda genmapx2
-  sta genmapx
-  lda genmapy2
-  sta genmapy
-  lda #41
-  jsr placetile
-  pla
-  sta genmapy
-  pla 
-  sta genmapx
-  rts
-
-  sta genmapt2
-  ; push genmap xy
-  lda genmapx
-  pha
-  lda genmapy
-  pha
-  ldy genmapy1
-  ; loop
 placebox0:
-  ldx genmapx1
-placebox1:
-  stx genmapx
-  sty genmapy
+  jsr getmapaddr
+  sta placebox1+1
+  sty placebox1+2
+  ldx #$00
   lda genmapt2
-  jsr placetile
-  ldx genmapx
-  ldy genmapy
+placebox1:
+  sta $ffff,x
   inx
-  cpx genmapx2
+  cpx genmapw
   bne placebox1
-  iny
-  cpy genmapy2
+  inc genmapy
+  lda genmapy
+  cmp genmaph
   bne placebox0
-  ; return
+
   pla
   sta genmapy
   pla
   sta genmapx
   rts
 
-placetile:
-  pha
+getmapaddr:
   lda genmapy
   ldy #map/256
   ldx #40
   jsr mul
   adc genmapx
-  bcc placetile0
+  bcc getmapaddr0
   iny
-placetile0:
-  sta placetile1+1
-  sty placetile1+2
+getmapaddr0:
+  rts
+
+placetile:
+  pha
+  jsr getmapaddr
+  sta placetile0+1
+  sty placetile0+2
   pla
-placetile1:
+placetile0:
   sta $ffff
   rts
 
