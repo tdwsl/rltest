@@ -30,6 +30,15 @@ l0:
   bne l0
   brk
 
+test:
+  jsr clear
+  jsr drawmap
+test0:
+  jsr getin
+  cmp #32
+  bne test0
+  rts
+
 clear:
   ldx #$00
   lda #32
@@ -37,9 +46,15 @@ clear0:
   sta $0400,x
   sta $0500,x
   sta $0600,x
-  sta $0700,x
   inx
   bne clear0
+  ldx #$00
+clear1:
+  sta $0700,x
+  inx
+  cpx #$e7
+  bne clear1
+  rts
 
 mul:
   dex
@@ -79,7 +94,9 @@ drawmap1:
 
 random:
   sta random0+1
+  inc random0+1
   sta random1+1
+  ror randomseed
   eor #$ff
   adc randomseed
   eor #$ff
@@ -88,24 +105,22 @@ random:
 random0:
   cmp #$ff
   bcc random2
-  clc
 random1:
   sbc #$ff
   jmp random0
 random2:
   rts
 
-genmapx = $19
-genmapy = $20
-genmapaddr = $61
+genmapx = $61
+genmapy = $62
 genmapnrooms = $63
 genmapx1 = $64
 genmapy1 = $65
 genmapt1 = $66
-genmapw = $4e
-genmaph = $4f
-genmapt2 = $fb
-genmapt3 = $fc
+genmapt2 = $67
+genmapw = $68
+genmaph = $69
+genmapy2 = $6A
 genmaprooms = $c500
 genmaptrooms = 5
 genmap:
@@ -156,14 +171,86 @@ genmaprm2:
   ldx #$00
 genmappl0:
   lda genmaprooms,x
-  and #3
   stx genmapt1
+  jsr getroomxy
+  jsr placeroom
+  ;jsr test
+  ldx genmapt1
+  inx
+  cpx genmapnrooms
+  bne genmappl0
+  jmp genmappathdn
+
+  ; add paths
+  ldx #$01
+genmappath0:
+  lda genmaprooms,x
+  stx genmapt1
+  jsr getroomxy
+  lda genmapx
+  sta genmapx1
+  lda genmapy
+  sta genmapy1
+  ldx genmapt1
+  dex
+  lda genmaprooms,x
+  jsr getroomxy
+
+genmappath1:
+  lda genmapx
+  cmp genmapx1
+  bcc genmappath2
+  beq genmappath3
+  dec genmapx
+  jmp genmappathnx
+genmappath2:
+  inc genmapx
+  jmp genmappathnx
+genmappath3:
+  cmp genmapy1
+  bcc genmappath4
+  beq genmappathdn
+  dec genmapy
+  jmp genmappathnx
+genmappath4:
+  inc genmapy
+genmappathnx:
+  jsr getmapaddr
+  sta genmappathlda+1
+  sta genmappathsta+1
+  sty genmappathlda+2
+  sty genmappathsta+2
+genmappathlda:
+  lda $ffff
+  cmp #32
+  beq genmappathspace
+  cmp #102
+  bne genmappathsta
+  lda #43
+  jmp genmappathsta
+genmappathspace:
+  lda #35
+genmappathsta:
+  sta $ffff
+  jmp genmappath1
+
+genmappathdn:
+  ldx genmapt1
+  inx
+  cpx genmapnrooms
+  bne genmappath0
+
+  ; return
+  rts
+
+getroomxy:
+  pha
+  and #3
   ldx #10
   jsr mul
   adc #5
   sta genmapx
-  ldx genmapt1
-  lda genmaprooms,x
+  pla
   and #12
   sta genmapy
   lsr genmapy
@@ -173,41 +260,28 @@ genmappl0:
   jsr mul
   adc #4
   sta genmapy
-  lda #46
-  jsr placeroom
-  ldx genmapt1
-  inx
-  cpx genmapnrooms
-  bne genmappl0
-  ; rtsurn
   rts
 
 placeroom:
   lda genmapx
-  sta genmapx1
+  pha
   lda genmapy
-  sta genmapy1
-  dec genmapx1
-  dec genmapx1
-  dec genmapy1
-  dec genmapy1
-  lda #4
-  sta genmapw
-  lda #4
-  sta genmaph
-  jmp placebox
+  pha
 
-  lda #10
+  lda #3
   jsr random
+  adc #6
   sta genmapw
   sta genmapt2
+  inc genmapw
   lsr genmapt2
   lda genmapx
   clc
   sbc genmapt2
   sta genmapx1
-  lda #7
+  lda #3
   jsr random
+  adc #4
   sta genmaph
   sta genmapt2
   lsr genmapt2
@@ -224,17 +298,21 @@ placeroom:
   dec genmaph
   dec genmaph
   lda #46
-  jmp placebox
+  jsr placebox
+
+  pla
+  sta genmapy
+  pla
+  sta genmapx
+  rts
 
 placebox:
   sta genmapt2
-  lda genmapx
-  pha
-  lda genmapy
-  pha
-
   lda genmapy1
   sta genmapy
+  clc
+  adc genmaph
+  sta genmapy2
   lda genmapx1
   sta genmapx
 placebox0:
@@ -250,13 +328,8 @@ placebox1:
   bne placebox1
   inc genmapy
   lda genmapy
-  cmp genmaph
+  cmp genmapy2
   bne placebox0
-
-  pla
-  sta genmapy
-  pla
-  sta genmapx
   rts
 
 getmapaddr:
@@ -264,6 +337,7 @@ getmapaddr:
   ldy #map/256
   ldx #40
   jsr mul
+  clc
   adc genmapx
   bcc getmapaddr0
   iny
